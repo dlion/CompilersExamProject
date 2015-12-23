@@ -1,0 +1,31 @@
+%option noyywrap
+
+ws	[ \t\n]+
+%x OCC OCC2
+%%
+
+"%%"	{ puts("SP1"); }
+"!!"	{ puts("SP2"); }
+"->"	{ puts("SEP_SCRITTORE"); }
+","	{ puts("SEP_LISTA");	}
+";"	{ puts("FINE_LISTA"); }
+":"	{ puts("CAMPO_LIBRO");	}
+
+
+([0-9]+{2})"/"([0-9]+{2})"/"([0-9]+{4})	{ puts("DATA_ANALISI"); }
+\"[A-Za-z ]+\"	{ puts("TESTO"); }
+([0-9]+){2}"-"([0-9]+){2}"-"([A-Z0-9]+){5}"-"([A-Z0-9]+){1}	{ puts("ISBN"); }
+[0-9]+	{ puts("NUMERO_PAGINE"); }
+("LI"|"LS") { puts("STRANIERA_ITA"); BEGIN(OCC); }
+<OCC>("AV"|"BO"|"SO") { puts("AVV_BIOG_SOC"); BEGIN(0); BEGIN(OCC2); }
+<OCC2>([0-9]+)([ A-Za-z]*) { puts("NUMERI_COLL"); BEGIN(0); }
+[A-Z0-9]+{16}	{ puts("CODICE_FISCALE"); }
+
+
+%%
+
+int main(void)
+{
+	yylex();
+	return 0;
+}
