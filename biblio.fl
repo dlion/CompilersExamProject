@@ -1,31 +1,28 @@
+%{
+#include <string.h>
+#include "biblio.tab.h"
+%}
+
 %option noyywrap
 
 ws	[ \t\n]+
 %x OCC OCC2
 %%
 
-"%%"	{ puts("SP1"); }
-"!!"	{ puts("SP2"); }
-"->"	{ puts("SEP_SCRITTORE"); }
-","	{ puts("SEP_LISTA");	}
-";"	{ puts("FINE_LISTA"); }
-":"	{ puts("CAMPO_LIBRO");	}
+"%%"	{ return(SP1); 		}
+"!!"	{ return(SP2); 		}
+"->"	{ return(SEP_SCRIT); 	}
+","	{ return(SEP_LIST);	}
+";"	{ return(FIN_LIST); 	}
+":"	{ return(CAMPO_LIBRO);	}
 
-
-([0-9]+{2})"/"([0-9]+{2})"/"([0-9]+{4})	{ puts("DATA_ANALISI"); }
-\"[A-Za-z ]+\"	{ puts("TESTO"); }
-([0-9]+){2}"-"([0-9]+){2}"-"([A-Z0-9]+){5}"-"([A-Z0-9]+){1}	{ puts("ISBN"); }
-[0-9]+	{ puts("NUMERO_PAGINE"); }
-("LI"|"LS") { puts("STRANIERA_ITA"); BEGIN(OCC); }
-<OCC>("AV"|"BO"|"SO") { puts("AVV_BIOG_SOC"); BEGIN(0); BEGIN(OCC2); }
-<OCC2>([0-9]+)([ A-Za-z]*) { puts("NUMERI_COLL"); BEGIN(0); }
-[A-Z0-9]+{16}	{ puts("CODICE_FISCALE"); }
-
-
+{ws}								;
+\"[A-Za-z0-9 ]+\"						{ yylval.stringa=strdu(yytext); return(TESTO); 			}
+([0-9]+){2}"-"([0-9]+){2}"-"([A-F0-9]+){5}"-"([A-Z0-9]+){1}	{ yylval.stringa=strdup(yytext); return(ISBN); 			}
+[0-9]+								{ yylval.intero=atoi(yytext); return(NUM_PAG); 			}
+("LI"|"LS")* 							{ yylval.stringa=strdup(yytext); BEGIN(OCC); return(COLL1); 	}
+<OCC>("AV"|"BO"|"SO") 						{ yylval.stringa=strdup(yytext); BEGIN(OCC2); return(COLL2); 	}
+<OCC2>([0-9]+)([ A-Za-z]*) 					{ BEGIN(0); return(NUM_COLL); 					}
+[A-Z0-9]+{16}							{ yylval.stringa=strdup(yytext); return(CF); 			}
+([0-3][0-9]|10|20|30)"/"([0-1][1-9]|10)"/"([0-9]+{4})		{ yylval.stringa=strdup(yytext); return(DATA);			}
 %%
-
-int main(void)
-{
-	yylex();
-	return 0;
-}
