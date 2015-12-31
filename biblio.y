@@ -4,18 +4,25 @@
 #include <string.h>
 #include <time.h>
 #include "symbol_tab.h"
-
+int yylex();
 void yyerror (char const *);
 
+//Dichiaro le variabili
 char 	*dataOggi, *dataPr,
 	*coll1, *coll2, *numcoll,
 	*isbn, *titolo, *autore,
 	*nomeC, *cf;
 
 int 	gg, mm, aaaa,
-	nPag, countISBN=0, countCF=0;
+	nPag, primo=0;
 struct 	tm 	dataNow = {0},
-		dataPrestito = {0};
+		dataPrestito = {0},
+		tmDiff;
+time_t tNow, tPr, tDiff;
+
+//Inizializzo le liste dei libri e dei clienti
+libro *listaL=NULL;
+cliente *listaC=NULL;
 
 %}
 
@@ -39,6 +46,7 @@ Input: 			Sezione1 SP1 Sezione2 SP2 Sezione3
 
 Sezione1:		DATA
 			{
+				//Salvo la data in cui viene processato il file e controllo che rispetti lo standard
 				dataOggi=$1;
 				sscanf(dataOggi, "%d/%d/%d",&dataNow.tm_mday,&dataNow.tm_mon,&dataNow.tm_year);
 				dataNow.tm_year -= 1900; //Perché year è il numero dell'anno dal 1900 ad "ora"
@@ -46,18 +54,18 @@ Sezione1:		DATA
 				{ yyerror("Formato data errato!"); return -1; }
 			}
 			;
-			
+
 Sezione2: 		Nome_autore ElencoLibri Sezione2
 			| Nome_autore ElencoLibri
 			;
 
 Nome_autore: 		TESTO SEP_SCRIT  { free(autore); autore = $1; }
 			;
-			
-ElencoLibri:  		StrutturaLibro SEP_LIST ElencoLibri 
+
+ElencoLibri:  		StrutturaLibro SEP_LIST ElencoLibri
 			| StrutturaLibro FIN_LIST
 			;
-	   
+
 StrutturaLibro: 	ISBN CAMPO_LIBRO TESTO CAMPO_LIBRO NUM_PAG CAMPO_LIBRO COLL1 COLL2 NUM_COLL
 	      		{
 				free(isbn); isbn=$1;
@@ -66,8 +74,14 @@ StrutturaLibro: 	ISBN CAMPO_LIBRO TESTO CAMPO_LIBRO NUM_PAG CAMPO_LIBRO COLL1 CO
 				free(coll1); coll1=$7;
 				free(coll2); coll2=$8;
 				free(numcoll); numcoll=$9;
-				if(strcmp(coll1, "LI") == 0 && strcmp(coll2, "BO") == 0) { yyerror("Non esiste il genere LI BO"); return -1; }
-				dbL[hash(isbn)] = ins_lib(autore, titolo, isbn, nPag, coll1, coll2, numcoll);
+				//Se ho le categorie LI e BO dà errore
+				if(strcmp(coll1, "LI") == 0 && strcmp(coll2, "BO") == 0)
+				{
+					yyerror("Non esiste il genere LI BO");
+					return -1;
+				}
+				//Creo un libro e lo aggiungo in coda alla lista
+				listaL = ins_lib(autore, titolo, isbn, nPag, coll1, coll2, numcoll, listaL);
 			}
 			;
 
@@ -78,37 +92,30 @@ Sezione3: 		/* Empty */
 InizioSezione3:		Nome_cliente Elenco_prenotazioni InizioSezione3
 			| Nome_cliente Elenco_prenotazioni
 			;
-			
+
 Nome_cliente: 		TESTO CAMPO_LIBRO CF CAMPO_LIBRO
 	    		{
 				free(nomeC); nomeC = $1;
 				free(cf); cf = $3;
 			}
 			;
-			
+
 Elenco_prenotazioni: 	Prenotazioni SEP_LIST Elenco_prenotazioni
 			| Prenotazioni FIN_LIST
 			;
-		
+
 Prenotazioni: 		DATA ISBN
 	    		{
 				free(dataPr); dataPr = $1;
 				free(isbn); isbn = $2;
-
+				//Prendo la data del prestito e controllo che rispetti lo standard
 				sscanf(dataPr, "%d/%d/%d",&dataPrestito.tm_mday,&dataPrestito.tm_mon,&dataPrestito.tm_year);
 				dataNow.tm_year -= 1900; //Perché year è il numero dell'anno dal 1900 ad "ora"
 				if(dataNow.tm_mday < 01 || dataNow.tm_mday > 31 || dataNow.tm_mon < 01 || dataNow.tm_mon > 12)
 				{ yyerror("Formato data errato!"); return -1; }
-
-				int hashCF = hash(cf);
-				int hashL = hash(isbn);
-				dbC[hash(cf)] = ins_cli(nomeC, cf, isbn, dataPr);
-				libro *l = (libro*)malloc(sizeof(libro));
-				l = dbL[hashL];
-				l->data = strdup(dataPr);
-				l->cliente = hashCF;
-				dbL[hashL] = l;
-			}	
+				//Creo un cliente e lo aggiungo in coda alla lista
+				listaC = ins_cli(nomeC, cf, isbn, dataPr, listaC);
+			}
 			;
 
 %%
@@ -118,81 +125,78 @@ int main()
 	if(yyparse() == 0)
 	{
 		printf("Libri disponibili:\n");
-		int i;
-		for(i=0; i < HASHSIZE-1; i++)
+		libro *i = (libro*)malloc(sizeof(libro));
+		//Scorro la lista
+		for(i=listaL; i != NULL; i=i->next)
 		{
-			if(dbL[i] != NULL)
+			//Se il libro non è associato a nessun utente questo è disponibile
+			if(i->tizio == NULL)
 			{
-				if(dbL[i]->cliente == -1)
-				{
-					printf("%s - %s - %s %s %s\n", dbL[i]->titolo, dbL[i]->autore, dbL[i]->coll1, dbL[i]->coll2, dbL[i]->numcoll);
-				}
+				printf("%s - %s - %s - %s - %s\n", i->titolo, i->autore, i->coll1, i->coll2, i->numcoll);
 			}
+
+
 		}
-		printf("\nPrestito scaduto:\n");
-		int j;
-		int trovato=0;
-		for(i=0; i < HASHSIZE-1; i++)
+		free(i);
+
+		printf("\nPrestiti scaduti:\n");
+		cliente *j = (cliente*)malloc(sizeof(cliente));
+		//Scorro la lista dei clienti
+		for(j=listaC; j != NULL; j=j->next)
 		{
-			if(dbC[i] != NULL)
+			int k;
+			//Scorro l'array dei libri presi dall'utente
+			for(k=0; k < j->nLibri; k++)
 			{
-				for(j=0; j < HASHSIZE-1; j++)
+				int hashL = j->libri[k];
+				sscanf(dbL[hashL]->data, "%d/%d/%d", &dataPrestito.tm_mday, &dataPrestito.tm_mon, &dataPrestito.tm_year);
+				dataPrestito.tm_year -= 1900;
+				//Ricontrollo che la data rispetti lo standard
+				if(dataPrestito.tm_mday < 01 || dataPrestito.tm_mday > 31 ||dataPrestito.tm_mon < 01 || dataPrestito.tm_mon > 12)
 				{
-					if(dbL[j] != NULL)
-					{
-						if(dbL[j]->cliente == hash(dbC[i]->CF))
-						{
-							sscanf(dbL[j]->data, "%d/%d/%d",
-								&dataPrestito.tm_mday,
-								&dataPrestito.tm_mon,
-								&dataPrestito.tm_year
-							);
-							dataPrestito.tm_year -= 1900;
-							if(dataPrestito.tm_mday < 01 || dataPrestito.tm_mday > 31 ||
-							    dataPrestito.tm_mon < 01 || dataPrestito.tm_mon > 12)
-							{ yyerror("Formato data errato!"); return -1; }
-
-							time_t tNow = mktime(&dataNow);
-							time_t tPr = mktime(&dataPrestito);
-							time_t tDiff = difftime(tNow, tPr);
-							struct tm tmDiff = *gmtime(&tDiff);
-
-							if(tmDiff.tm_yday > 60)
-							{
-								if(trovato == 0)
-								{
-									printf("%s : ", dbC[i]->CF);
-									trovato = 1;
-								}
-								printf("%s %s, ", dbL[j]->data, dbL[j]->ISBN);
-							}
-						}
-					}
+					yyerror("Formato data errato!");
+					return -1;
 				}
-				trovato = 0;
-			}
-		}						
 
-		printf("\nPagine lette:\n");
-		for(i=0; i < HASHSIZE-1; i++)
+				tNow = mktime(&dataNow);
+				tPr = mktime(&dataPrestito);
+				tDiff = difftime(tNow, tPr);
+				tmDiff = *gmtime(&tDiff);
+				//Se la data è vecchia di 60 giorni da oggi mettilo in output
+				if(tmDiff.tm_yday > 60)
+				{
+					//Così stampo solo una volta cliente associato
+					if(primo == 0)
+					{
+						printf("%s : ", j->CF);
+						primo = 1;
+					}
+					printf("%s %s", dbL[hashL]->data, dbL[hashL]->ISBN);
+					//Così evito la virgola alla fine dell'array di libri associati all'utente
+					if((k+1) < (j->nLibri-1)) printf(", ");
+				}
+			}
+			putchar('\n');
+			primo = 0;
+		}
+		free(j);
+
+		printf("Pagine Lette :\n");
+		j = (cliente*)malloc(sizeof(cliente));
+		//Scorro la lista dei clienti
+		for(j=listaC; j != NULL; j=j->next)
 		{
-			int sommaP = 0;
-			if(dbC[i] != NULL)
+			int k;
+			int sommaP=0;
+			//Scorro l'array di libri associati all'utente
+			for(k=0; k < j->nLibri; k++)
 			{
-				for(j=0; j < HASHSIZE-1; j++)
-				{
-					if(dbL[j] != NULL)
-					{
-						if(dbL[j]->cliente == hash(dbC[i]->CF))
-						{
-							sommaP += dbL[j]->num_pag;
-						}
-					}
-				}
-				printf("%s: %d\n", dbC[i]->nome, sommaP);
+				int hashL = j->libri[k];
+				//Sommo il numero di pagine di libri associati all'utente
+				sommaP += dbL[hashL]->num_pag;
 			}
-		}						
-							
+			printf("%s: %d\n", j->nome, sommaP);
+		}
 	}
 	return 0;
 }

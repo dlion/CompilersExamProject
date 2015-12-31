@@ -1,8 +1,21 @@
 /*
- * Massima grandezza dell'hashtable
+ * Valore da usare per generare l'hash e grandezza massima hashtable
  */
 #define HASHSIZE 101
 
+/*
+ * Struttura dati del cliente
+ */
+typedef struct c {
+  char *nome,
+       *CF;
+  //Array di hash di libri
+  int *libri;
+  //Numero di libri associati al cliente
+  int nLibri;
+
+  struct c *next;
+}cliente;
 
 /*
  * Struttura dati del libro
@@ -15,39 +28,54 @@ typedef struct l {
        *coll2,
        *numcoll,
        *data;
-  int num_pag,
-      cliente;
+  int num_pag;
+  struct l *next;
+  //Punta al cliente che l'ha preso in prestito
+  cliente *tizio;
 }libro;
 
 /*
- * Struttura dati del cliente
- */
-typedef struct c {
-  char *nome;
-  char *CF;
-}cliente;
-
-/*
- * Database di utenti
- */
-cliente *dbC[HASHSIZE];
-
-/*
- * Database di libri
+ * HashTable di libri
  */
 libro *dbL[HASHSIZE];
+
+/*
+ * Hashtable di clienti
+ */
+cliente *dbC[HASHSIZE];
 
 /*
  * Genera l'hash
  */
 unsigned int hash(char *s);
 
-/*
- * Inserisce un libro all'interno dell'hashtable
+/**
+ * Collega l'hashtable dei clienti con i vari clienti
  */
-libro *ins_lib(char*,char*, char *, int, char*, char*, char*);
+void collegaHashCliente(cliente*);
+
+/**
+ * Collega l'hashtable dei libri con i vari libri
+ */
+void collegaHashLibro(libro*);
+
+/**
+ * Collega un libro ad un cliente
+ */
+libro *collegaLibroCliente(char*, char*, cliente*);
+
+/**
+ * Inserisce l'hash di un libro associato ad un utente all'interno dell'array dei libri associati dell'utente
+ */
+cliente *aggiungiHashLibro(char*, char*);
 
 /*
- * Inserisce un cliente all'interno dell'hashtable
+ * Inserisce un libro all'interno della lista
  */
-cliente *ins_cli(char*, char*, char*, char*);
+libro *ins_lib(char*,char*, char *, int, char*, char*, char*, libro*);
+
+/*
+ * Inserisce un cliente all'interno della lista
+ */
+cliente *ins_cli(char*, char*, char*, char*, cliente*);
+
