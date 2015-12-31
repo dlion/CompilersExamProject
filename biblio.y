@@ -197,6 +197,7 @@ int main()
 			}
 			printf("%s: %d\n", j->nome, sommaP);
 		}
+		free(j);
 	}
 	return 0;
 }
