@@ -12,7 +12,7 @@ ws	[ \t\n]+
 "%%"	{ return(SP1); 		}
 "!!"	{ return(SP2); 		}
 "->"	{ return(SEP_SCRIT); 	}
-","		{ return(SEP_LIST);	}
+","	{ return(SEP_LIST);	}
 ";"	{ return(FIN_LIST); 	}
 ":"	{ return(CAMPO_LIBRO);	}
 

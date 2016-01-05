@@ -78,7 +78,6 @@ StrutturaLibro: 	ISBN CAMPO_LIBRO TESTO CAMPO_LIBRO NUM_PAG CAMPO_LIBRO COLL1 CO
 				if(strcmp(coll1, "LI") == 0 && strcmp(coll2, "BO") == 0)
 				{
 					yyerror("Non esiste il genere LI BO");
-					return -1;
 				}
 				//Creo un libro e lo aggiungo in coda alla lista
 				listaL = ins_lib(autore, titolo, isbn, nPag, coll1, coll2, numcoll, listaL);
