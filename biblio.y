@@ -8,10 +8,16 @@ int yylex();
 void yyerror (char const *);
 
 //Dichiaro le variabili
-char 	*dataOggi, *dataPr,
-	*coll1, *coll2, *numcoll,
-	*isbn, *titolo, *autore,
-	*nomeC, *cf;
+char 	*dataOggi=NULL,
+	*dataPr=NULL,
+	*coll1=NULL,
+	*coll2=NULL,
+	*numcoll=NULL,
+	*isbn=NULL,
+	*titolo=NULL,
+	*autore=NULL,
+	*nomeC=NULL,
+	*cf=NULL;
 
 int 	gg, mm, aaaa,
 	nPag, primo=0;
